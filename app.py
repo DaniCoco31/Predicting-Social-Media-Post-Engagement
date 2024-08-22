@@ -9,7 +9,10 @@ import sklearn
 from scipy.stats import boxcox
 import plotly.graph_objects as go
 from streamlit.components.v1 import html
-from openai import OpenAI
+from openai import OpenAI, AuthenticationError
+import base64
+from io import BytesIO
+import io
 
 # Ensure compatibility between versions
 print("Scikit-Learn Version:", sklearn.__version__)
@@ -17,14 +20,14 @@ print("Scikit-Learn Version:", sklearn.__version__)
 sys.path.append('../Notebooks/')
 st.set_page_config(layout="wide", page_title="IG Interaction Predictor")
 
-# Custom CSS with Instagram-like colors and gradients
+# Updated Custom CSS with white background and black text
 custom_css = """
 <style>
     body {
         font-family: 'Helvetica', sans-serif;
         font-size: 14px;
         color: #262626;
-        background: #121212;
+        background: #ffffff;
     }
     .stApp {
         max-width: 100%;
@@ -62,8 +65,8 @@ custom_css = """
         border-image-slice: 1;
         border-image-source: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d);
         border-radius: 4px;
-        background-color: #1e1e1e;
-        color: #ffffff;
+        background-color: #ffffff;
+        color: #262626;
     }
     .stButton > button {
         background: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d);
@@ -80,7 +83,7 @@ custom_css = """
         transform: scale(1.05);
     }
     .output-box {
-        background-color: #1e1e1e;
+        background-color: #ffffff;
         padding: 2rem;
         border-radius: 8px;
         margin-top: 2rem;
@@ -89,38 +92,12 @@ custom_css = """
         border: 1px solid;
         border-image-slice: 1;
         border-image-source: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d);
-        color: #ffffff;
+        color: #262626;
     }
 </style>
 """
 
-# JavaScript for input validation
-js_code = """
-<script>
-document.addEventListener('DOMContentLoaded', (event) => {
-    const form = document.querySelector('form');
-    form.addEventListener('submit', (e) => {
-        const inputs = form.querySelectorAll('input[type="number"]');
-        let isValid = true;
-        inputs.forEach(input => {
-            if (input.value === '' || parseInt(input.value) < 0) {
-                isValid = false;
-                input.style.borderColor = 'red';
-            } else {
-                input.style.borderColor = '';
-            }
-        });
-        if (!isValid) {
-            e.preventDefault();
-            alert('Please fill all fields with non-negative numbers.');
-        }
-    });
-});
-</script>
-"""
-
 st.markdown(custom_css, unsafe_allow_html=True)
-html(js_code)
 
 # Instagram logo
 st.markdown("""
@@ -132,8 +109,8 @@ st.markdown("""
 # Load model and scaler
 @st.cache_resource
 def load_model_and_scaler():
-    model_path = '/home/danicoco/Escritorio/IronHack-DataAnalysis/8. week-eight/project/Notebooks/model.pkl'
-    scaler_path = '/home/danicoco/Escritorio/IronHack-DataAnalysis/8. week-eight/project/Notebooks/scaler.pkl'
+    model_path = '/home/danicoco/Escritorio/IronHack-DataAnalysis/8. week-eight/project/Predicting-Social-Media-Post-Engagement/Notebooks/model.pkl'
+    scaler_path = '/home/danicoco/Escritorio/IronHack-DataAnalysis/8. week-eight/project/Predicting-Social-Media-Post-Engagement/Notebooks/scaler.pkl'
 
     try:
         with open(model_path, 'rb') as file:
@@ -187,28 +164,7 @@ time_mapping = {
     'Night': 'time_of_day_night'
 }
 
-# Function to read API key from file
-def get_api_key():
-    api_key_path = '.env'  # Change this to the path of your file containing the API key
-    try:
-        with open(api_key_path, 'r') as file:
-            api_key = file.read().strip()
-        if not api_key.startswith('sk-'):
-            raise ValueError("The API key doesn't seem to be in the correct format.")
-        return api_key
-    except FileNotFoundError:
-        st.error(f"API key file not found at {api_key_path}. Please ensure the file exists and contains your API key.")
-    except ValueError as e:
-        st.error(f"Invalid API key format: {str(e)}")
-    except Exception as e:
-        st.error(f"An error occurred while reading the API key: {str(e)}")
-    return None
-
-def get_caption_suggestion(caption):
-    api_key = get_api_key()
-    if not api_key:
-        return "Unable to generate caption suggestion due to API key issues."
-    
+def get_caption_suggestion(caption, api_key):
     try:
         client = OpenAI(api_key=api_key)
         response = client.chat.completions.create(
@@ -227,25 +183,6 @@ def get_caption_suggestion(caption):
     except Exception as e:
         st.error(f"An error occurred while generating the caption suggestion: {str(e)}")
         return "Unable to generate caption suggestion due to an unexpected error."
-
-
-# Function to get caption suggestion
-def get_caption_suggestion(caption):
-    api_key = get_api_key()
-    if not api_key:
-        return "Unable to generate caption suggestion due to missing API key."
-    
-    client = OpenAI(api_key=api_key)
-    response = client.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are an expert in social media marketing. Your task is to suggest improvements to Instagram captions to increase engagement."},
-            {"role": "user", "content": f"Please suggest an improved version of this Instagram caption to increase engagement:\n{caption}"}
-        ],
-        max_tokens=1000,
-        temperature=0.7
-    )
-    return response.choices[0].message.content
 
 # Optimized prediction function
 @st.cache_data
@@ -298,6 +235,22 @@ def predict_interactions(input_data):
         st.error(f"An error occurred during prediction: {str(e)}")
         return 0, 0
 
+def improve_caption(input_data, api_key, original_interactions):
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        suggested_caption = get_caption_suggestion(input_data['caption'], api_key)
+        if suggested_caption.startswith("Unable to generate caption suggestion"):
+            return None, None, None
+        
+        suggested_input_data = input_data.copy()
+        suggested_input_data['caption'] = suggested_caption
+        _, suggested_interactions = predict_interactions(suggested_input_data)
+        
+        if suggested_interactions > original_interactions:
+            return suggested_caption, suggested_interactions, attempt + 1
+    
+    return None, None, max_attempts
+
 # Function to generate heatmap data
 @st.cache_data
 def generate_heatmap_data(input_data):
@@ -320,26 +273,50 @@ def create_heatmap(heatmap_data):
         z=df_pivot.values,
         x=df_pivot.columns,
         y=df_pivot.index,
-        colorscale='YlOrRd',
+        colorscale=[
+            [0, "#405de6"],      # Instagram blue
+            [0.2, "#5851db"],    # Instagram purple
+            [0.4, "#833ab4"],    # Instagram darker purple
+            [0.6, "#c13584"],    # Instagram pinkish purple
+            [0.8, "#e1306c"],    # Instagram pink
+            [1, "#fd1d1d"]       # Instagram red
+        ],
         hovertemplate='Day: %{x}<br>Time: %{y}<br>Interactions: %{z:.0f}<extra></extra>'
     ))
 
     fig.update_layout(
-        title='Predicted Interactions by Day and Time',
-        xaxis_title='Day of Week',
-        yaxis_title='Time of Day',
-        font=dict(color='white'),
-        plot_bgcolor='#121212',
-        paper_bgcolor='#121212',
+        title={
+            'text': 'Predicted Interactions by Day and Time',
+            'font': {'color': 'black', 'size': 24}
+        },
+        xaxis_title={'text': 'Day of Week', 'font': {'color': 'black', 'size': 18}},
+        yaxis_title={'text': 'Time of Day', 'font': {'color': 'black', 'size': 18}},
+        font=dict(color='black'),
+        plot_bgcolor='#ffffff',
+        paper_bgcolor='#ffffff',
         height=500,
         width=800,
         margin=dict(l=50, r=50, t=80, b=50),
     )
 
-    fig.update_xaxes(side='top', tickangle=45)
-    fig.update_yaxes(autorange='reversed')
+    fig.update_xaxes(side='top', tickangle=45, tickfont=dict(color='black', size=14))
+    fig.update_yaxes(autorange='reversed', tickfont=dict(color='black', size=14))
 
     return fig
+
+
+# New function to get download link for text content
+def get_text_download_link(content, filename, link_text):
+    b64 = base64.b64encode(content.encode()).decode()
+    return f'<a href="data:text/plain;base64,{b64}" download="{filename}">{link_text}</a>'
+
+def get_plot_download_link(fig, filename, text):
+    buffer = io.StringIO()
+    fig.write_html(buffer, include_plotlyjs='cdn')
+    html_bytes = buffer.getvalue().encode()
+    encoded = base64.b64encode(html_bytes).decode()
+    href = f'<a href="data:text/html;base64,{encoded}" download="{filename}">{text}</a>'
+    return href
 
 # Streamlit app
 def main():
@@ -348,35 +325,47 @@ def main():
     if 'page' not in st.session_state:
         st.session_state.page = 'input'
 
+    # Option to use API
+    use_api = st.checkbox("Use API for caption improvement", value=False)
+
+    if use_api:
+        # API Key input
+        api_key = st.text_input("Enter your OpenAI API Key", type="password")
+        if not api_key:
+            st.warning("Please enter your OpenAI API Key to use the caption improvement feature.")
+
     if st.session_state.page == 'input':
         with st.form("input_form"):
             st.header("Account Information")
-            caption = st.text_input("Caption")
-            followers = st.number_input("Followers", min_value=0, step=1)
-            following = st.number_input("Following", min_value=0, step=1)
-            posts = st.number_input("Number of posts", min_value=0, step=1)
+            caption = st.text_area("Caption", height=100, help="Enter your Instagram post caption here.")
+            followers = st.number_input("Followers", min_value=1, step=1, value=1)
+            following = st.number_input("Following", min_value=0, step=1, value=0)
+            posts = st.number_input("Number of posts", min_value=0, step=1, value=0)
             business_account = st.checkbox("Business Account")
 
             st.header("Post Details")
-            category = st.selectbox("Category", list(category_mapping.keys()))
-            day = st.selectbox("Day of posting", list(day_mapping.keys()))
-            time = st.selectbox("Time of posting", list(time_mapping.keys()))
+            category = st.selectbox("Category", list(category_mapping.keys()), index=0)
+            day = st.selectbox("Day of posting", list(day_mapping.keys()), index=0)
+            time = st.selectbox("Time of posting", list(time_mapping.keys()), index=0)
 
             submitted = st.form_submit_button("Predict")
 
         if submitted:
-            st.session_state.input_data = {
-                'caption': caption,
-                'followers': followers,
-                'following': following,
-                'posts': posts,
-                'businessAccount': business_account,
-                'category': category,
-                'day': day,
-                'time': time
-            }
-            st.session_state.page = 'output'
-            st.rerun()
+            if not caption:
+                st.error("Please fill in the caption field.")
+            else:
+                st.session_state.input_data = {
+                    'caption': caption,
+                    'followers': followers,
+                    'following': following,
+                    'posts': posts,
+                    'businessAccount': business_account,
+                    'category': category,
+                    'day': day,
+                    'time': time
+                }
+                st.session_state.page = 'output'
+                st.rerun()
 
     elif st.session_state.page == 'output':
         original_interactions_per_follower, original_total_interactions = predict_interactions(st.session_state.input_data)
@@ -395,46 +384,55 @@ def main():
         st.subheader("Original Heatmap")
         st.plotly_chart(original_fig, use_container_width=True)
 
-        # Get caption suggestion
-        suggested_caption = get_caption_suggestion(st.session_state.input_data['caption'])
-        st.subheader("Suggested Caption Improvement")
-        st.write(suggested_caption)
+        # Download link for original heatmap
+        st.markdown(get_plot_download_link(original_fig, "original_heatmap.html", "Download Original Heatmap"), unsafe_allow_html=True)
 
-        if not suggested_caption.startswith("Unable to generate caption suggestion"):
-            
+        if use_api and api_key:
+            # Improve caption and compare results
+            improved_caption, improved_interactions, attempts = improve_caption(st.session_state.input_data, api_key, original_total_interactions)
 
-           # Predict interactions with the suggested caption
-            suggested_input_data = st.session_state.input_data.copy()
-            suggested_input_data['caption'] = suggested_caption
-            suggested_interactions_per_follower, suggested_total_interactions = predict_interactions(suggested_input_data)
+            if improved_caption:
+                improved_interactions_per_follower = improved_interactions / st.session_state.input_data['followers']
+                
+                st.header("Improved Caption Results")
+                st.markdown(f"""
+                <div class="output-box">
+                    <p><strong>Improved Caption:</strong> {improved_caption}</p>
+                    <p><strong>Improved Interactions:</strong> {improved_interactions:.0f}</p>
+                    <p><strong>Improved Interactions / Follower:</strong> {improved_interactions_per_follower:.2f}</p>
+                    <p><strong>Improvement Attempts:</strong> {attempts}</p>
+                </div>
+                """, unsafe_allow_html=True)
 
-            st.header("Suggested Caption Prediction Results")
-            st.markdown(f"""
-            <div class="output-box">
-                <p><strong>Suggested Interactions:</strong> {suggested_total_interactions:.0f}</p>
-                <p><strong>Suggested Interactions / Follower:</strong> {suggested_interactions_per_follower:.2f}</p>
-            </div>
-            """, unsafe_allow_html=True)
+                # Generate and display the improved heatmap
+                improved_input_data = st.session_state.input_data.copy()
+                improved_input_data['caption'] = improved_caption
+                improved_heatmap_data = generate_heatmap_data(improved_input_data)
+                improved_fig = create_heatmap(improved_heatmap_data)
+                st.subheader("Improved Caption Heatmap")
+                st.plotly_chart(improved_fig, use_container_width=True)
 
-            # Generate and display the suggested heatmap
-            suggested_heatmap_data = generate_heatmap_data(suggested_input_data)
-            suggested_fig = create_heatmap(suggested_heatmap_data)
-            st.subheader("Suggested Caption Heatmap")
-            st.plotly_chart(suggested_fig, use_container_width=True)
+                # Download link for improved caption
+                st.markdown(get_text_download_link(improved_caption, "improved_caption.txt", "Download Improved Caption"), unsafe_allow_html=True)
 
-            st.subheader("Comparison of Original vs Suggested")
-            comparison_data = {
-                "Metric": ["Total Interactions", "Interactions per Follower"],
-                "Original": [original_total_interactions, original_interactions_per_follower],
-                "Suggested": [suggested_total_interactions, suggested_interactions_per_follower],
-                "Improvement": [
-                    f"{(suggested_total_interactions - original_total_interactions) / original_total_interactions * 100:.2f}%",
-                    f"{(suggested_interactions_per_follower - original_interactions_per_follower) / original_interactions_per_follower * 100:.2f}%"
-                ]
-            }
-            st.table(pd.DataFrame(comparison_data))
-        else:
-            st.warning("Caption suggestion feature is unavailable due to missing API key.")
+                st.subheader("Comparison of Original vs Improved")
+                comparison_data = {
+                    "Metric": ["Total Interactions", "Interactions per Follower"],
+                    "Original": [original_total_interactions, original_interactions_per_follower],
+                    "Improved": [improved_interactions, improved_interactions_per_follower],
+                    "Improvement": [
+                        f"{(improved_interactions - original_total_interactions) / original_total_interactions * 100:.2f}%",
+                        f"{(improved_interactions_per_follower - original_interactions_per_follower) / original_interactions_per_follower * 100:.2f}%"
+                    ]
+                }
+                st.table(pd.DataFrame(comparison_data))
+            else:
+                st.warning("Unable to generate an improved caption that increases interactions after multiple attempts.")
+
+                # Convert comparison table to CSV for download
+            comparison_df = pd.DataFrame(comparison_data)
+            csv = comparison_df.to_csv(index=False)
+            st.markdown(get_text_download_link(csv, "comparison_table.csv", "Download Comparison Table"), unsafe_allow_html=True)
 
         if st.button("Go back"):
             st.session_state.page = 'input'
