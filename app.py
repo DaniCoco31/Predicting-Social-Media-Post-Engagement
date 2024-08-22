@@ -109,8 +109,8 @@ st.markdown("""
 # Load model and scaler
 @st.cache_resource
 def load_model_and_scaler():
-    model_path = 'model.pkl'
-    scaler_path = 'scaler.pkl'
+    model_path = '/home/danicoco/Escritorio/IronHack-DataAnalysis/8. week-eight/project/Predicting-Social-Media-Post-Engagement/Notebooks/model.pkl'
+    scaler_path = '/home/danicoco/Escritorio/IronHack-DataAnalysis/8. week-eight/project/Predicting-Social-Media-Post-Engagement/Notebooks/scaler.pkl'
 
     try:
         with open(model_path, 'rb') as file:
