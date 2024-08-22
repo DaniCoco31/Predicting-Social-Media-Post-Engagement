@@ -8,7 +8,7 @@ The dataset consists of social media posts with the following attributes:
 - **Post descriptions**
 - **Number of likes**
 - **Number of comments**
-- **Post type** (e.g., image, video)
+- **Number of posts by the user** 
 - **Time of posting**
 - **User follower count**
 
