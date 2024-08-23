@@ -1,14 +1,14 @@
 # Predicting Social Media Post Engagement
 
 ## Introduction
-This project aims to predict the engagement levels of social media posts based on their descriptions and other relevant features. Engagement is defined as the sum of interactions a post receives, such as likes and comments. Accurately predicting engagement can help optimize content strategies, maximize reach, and improve overall social media performance.
+This project aims to predict the engagement levels of social media posts based on their descriptions and other relevant features. Engagement is defined as the sum of interactions a post receives, such as likes and comments. By accurately predicting engagement, this project seeks to optimize content strategies, maximize reach, and improve overall social media performance.
 
 ## Dataset Overview
 The dataset consists of social media posts with the following attributes:
 - **Post descriptions**
 - **Number of likes**
 - **Number of comments**
-- **Number of posts by the user** 
+- **Number of posts by the user**
 - **Time of posting**
 - **User follower count**
 
@@ -35,7 +35,7 @@ The project is divided into seven key notebooks, each focusing on different stag
 ## Project Workflow
 1. **Data Collection**
    - **Objective:** Collect and merge the base dataset with embedded text data.
-   - Load the original dataset and the embeddings.
+   - Gather data from multiple sources, focusing on the integration of large-scale datasets to ensure comprehensiveness.
    - Merge datasets based on common identifiers like `id` and `description`.
 
 2. **Data Cleaning and Wrangling**
@@ -78,13 +78,36 @@ The project is divided into seven key notebooks, each focusing on different stag
    - Save the final model for deployment or further analysis.
 
 ## Results and Interpretation
+### Model Performance
+**Random Forest Performance**:
+- Mean Absolute Error (MAE): 29.12
+- Mean Squared Error (MSE): 1485.41
+- R-squared: 0.38
+
+**Gradient Boosting Performance**:
+- Mean Absolute Error (MAE): 34.41
+- Mean Squared Error (MSE): 1897.81
+- R-squared: 0.21
+
+**TensorFlow Neural Network Performance**:
+- Mean Absolute Error (MAE): 34.12
+- Mean Squared Error (MSE): 1859.50
+- R-squared: 0.23
+
+**XGBoost Performance**:
+- Mean Absolute Error (MAE): 29.27
+- Mean Squared Error (MSE): 1525.94
+- R-squared: 0.37
+
+**Best Model**: Random Forest
+
 ### Key Findings
 - Positive sentiment and longer descriptions tend to increase engagement.
 - Posting during peak hours results in higher interactions.
 - Specific keywords (e.g., "exclusive", "free") are strong predictors of engagement.
 
 ### Business Impact
-The model provides actionable insights that can help marketers optimize their social media strategies, focusing on content that is more likely to engage users.
+The model provides actionable insights that can help marketers optimize their social media strategies, focusing on content that is more likely to engage users. By aligning posting times with peak engagement periods and crafting posts with targeted keywords, brands can significantly enhance their online presence.
 
 ### Limitations
 - The model is based on specific data and may not generalize across all social media platforms.
@@ -117,9 +140,8 @@ This project successfully built and optimized a model to predict social media po
 - Test the model across different social media platforms for generalizability.
 
 ## Deliverables
-- **GitHub Repository:** [Link to repository]
-- **Presentation Slides:** [Link to slides]
-- **Final Report:** [Link to Jupyter Notebook or final report]
+- **GitHub Repository:** [https://github.com/DaniCoco31/Predicting-Social-Media-Post-Engagement/]
+- **Presentation Slides:** [https://www.canva.com/design/DAGOnginV-4/jWEpQz7KxToZWa93cqtMoA/edit]
 
 ### Installation
 To set up the project locally, clone the repository and install the required libraries:
@@ -128,5 +150,3 @@ To set up the project locally, clone the repository and install the required lib
 git clone https://github.com/yourusername/social-media-engagement-prediction.git
 cd social-media-engagement-prediction
 pip install -r requirements.txt
-
-
