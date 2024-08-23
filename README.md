@@ -123,11 +123,6 @@ The model provides actionable insights that can help marketers optimize their so
 - **Posting Schedule:** Post during peak engagement times.
 - **A/B Testing:** Use the model to test different content strategies.
 
-## Deployment (Optional)
-### Deployment Strategy
-- Deploy the model as a web service using Flask or Django.
-- Allow users to input post descriptions and get predicted engagement scores.
-
 ### User Interface
 - A simple interface where users can input post details and receive predictions.
 
